@@ -3,8 +3,13 @@
 DESTINATION_FOLDER="${DESTINATION_ROOT}/${BACKUP_NAME}"
 TS=`date +%Y%m%d_%H%M%S`
 
-FULL_TARGET_FOLDER="${DESTINATION_FOLDER}/full/${TS}"
-FULL_TEMP_FOLDER="${DESTINATION_FOLDER}/full/temp/${TS}"
+FULL_BASE_FOLDER="${DESTINATION_FOLDER}/full"
+FULL_TARGET_FOLDER="${FULL_BASE_FOLDER}/${TS}"
+FULL_TEMP_FOLDER="${FULL_BASE_FOLDER}/temp/${TS}"
+
+INCREMENTAL_BASE_FOLDER="${DESTINATION_FOLDER}/incremental"
+INCREMENTAL_TARGET_FOLDER="${INCREMENTAL_BASE_FOLDER}/${TS}"
+INCREMENTAL_TEMP_FOLDER="${INCREMENTAL_BASE_FOLDER}/temp/${TS}"
 
 
 # Check last command success
@@ -28,7 +33,7 @@ ssh root@${DESTINATION_HOST} << EOF
     fi
     cd $1
     backup_cnt=\`ls -d ????????_?????? | wc -l\`
-    remain=\`expr \$backup_cnt - $2\`
+    remain=\$((\$backup_cnt - $2))
     if [ \$remain -gt 0 ]; then
         ls -d ????????_?????? | sort | head -\$remain | xargs rm -rf
     fi
@@ -39,7 +44,7 @@ EOF
 # create an full backup
 # No parameter
 function full_backup() {
-    prune_backups ${DESTINATION_FOLDER}/full ${MAX_FULL_BACKUP}
+    prune_backups ${FULL_BASE_FOLDER} ${MAX_FULL_BACKUP}
 
 ssh root@${DESTINATION_HOST} << EOF
     mkdir -p ${FULL_TEMP_FOLDER}
@@ -55,10 +60,36 @@ EOF
     ensure_success "failed to mv fold from ${FULL_TEMP_FOLDER} to ${FULL_TARGET_FOLDER}"
 }
 
+# create an incremental backup
+# if there's no last backup, do a full backup first
+function incremental_backup() {
+    prune_backups ${INCREMENTAL_BASE_FOLDER} ${MAX_INCREMENTAL}
+
+ssh root@${DESTINATION_HOST} << EOF
+    set -e
+    mkdir -p ${INCREMENTAL_BASE_FOLDER}
+    cd ${INCREMENTAL_BASE_FOLDER}
+    if ls -d ????????_?????? > /dev/null 2>&1; then
+        cp -al \`ls -d ????????_?????? | sort | tail -1\` ${INCREMENTAL_TEMP_FOLDER}
+    else
+        mkdir -p ${INCREMENTAL_TEMP_FOLDER}
+    fi
+EOF
+    ensure_success "failed to setup remote hard link"
+
+    rsync -av --delete ${BACKUP_DIRECTORY} root@${DESTINATION_HOST}:${INCREMENTAL_TEMP_FOLDER}
+    ensure_success "failed to run rsync"
+
+ssh root@${DESTINATION_HOST} << EOF
+    mv ${INCREMENTAL_TEMP_FOLDER} ${INCREMENTAL_TARGET_FOLDER}
+EOF
+    ensure_success "failed to mv fold from ${INCREMENTAL_TEMP_FOLDER} to ${INCREMENTAL_TARGET_FOLDER}"
+}
+
 if [ "$1" == "full" ]; then
     time full_backup
 elif [ "$1" == "incremental" ]; then
-    echo incremental
+    time incremental_backup
 else
     echo "should specify either full or incremental"
 fi

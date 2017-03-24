@@ -1,5 +1,43 @@
 #!/bin/bash
 
+##################################################################
+# Backup Scripts
+# This scripts make incremental or full backups of your folder
+# To make a full backup: ./backup.sh full
+# To make a incremental backup: ./backup.sh incremental
+#
+# Before run this script, below profile variables must be defined
+# and export to this script:
+# BACKUP_NAME - The unique name of this backup
+# BACKUP_DIRECTORY - The directory you want to backup
+# DESTINATION_HOST - The host where you want to save the backup
+# DESTINATION_ROOT - The root directory of your backups on DESTINATION_HOST
+# MAX_FULL_BACKUP - Max number of full backups to keep
+# MAX_INCREMENTAL - Max number of incremental backups to keep
+#
+#
+# Backup Folder Structure
+#
+# - DESTINATION_HOST:DESTINATION_ROOT
+#  |- BACKUP_NAME
+#  | |- full
+#  | |  |- 20170101_120000
+#  | |  |- 20170102_120000
+#  | |  |- 20170102_120000
+#  | |  |- temp
+#  | |-incremental
+#  | |  |- 20170101_120000
+#  | |  |- temp
+#  |- BACKUP_NAME
+#  |- BACKUP_NAME
+#
+##################################################################
+
+if [ -z ${BACKUP_NAME} ] || [ -z ${BACKUP_DIRECTORY} ] || [ -z ${DESTINATION_HOST} ] || [ -z ${DESTINATION_ROOT} ] || [ -z ${MAX_FULL_BACKUP} ] || [ -z ${MAX_INCREMENTAL} ]; then
+    >&2 echo "profile variables not defned"
+    exit 1
+fi
+
 DESTINATION_FOLDER="${DESTINATION_ROOT}/${BACKUP_NAME}"
 TS=`date +%Y%m%d_%H%M%S`
 
@@ -44,6 +82,8 @@ EOF
 # create an full backup
 # No parameter
 function full_backup() {
+    echo "Full backup from ${BACKUP_DIRECTORY} to ${DESTINATION_HOST}:${DESTINATION_FOLDER}"
+
     prune_backups ${FULL_BASE_FOLDER} ${MAX_FULL_BACKUP}
 
 ssh root@${DESTINATION_HOST} << EOF
@@ -63,6 +103,8 @@ EOF
 # create an incremental backup
 # if there's no last backup, do a full backup first
 function incremental_backup() {
+    echo "Full backup from ${BACKUP_DIRECTORY} to ${DESTINATION_HOST}:${DESTINATION_FOLDER}"
+
     prune_backups ${INCREMENTAL_BASE_FOLDER} ${MAX_INCREMENTAL}
 
 ssh root@${DESTINATION_HOST} << EOF

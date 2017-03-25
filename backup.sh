@@ -64,6 +64,7 @@ function ensure_success() {
 # $1 - the remote directory that contains backups
 # $2 - the maximum backups to keep
 function prune_backups() {
+    echo "prune old backups"
 ssh root@${DESTINATION_HOST} << EOF
     set -e
     if [ ! -e $1 ]; then
@@ -127,6 +128,18 @@ ssh root@${DESTINATION_HOST} << EOF
 EOF
     ensure_success "failed to mv fold from ${INCREMENTAL_TEMP_FOLDER} to ${INCREMENTAL_TARGET_FOLDER}"
 }
+
+santinize() {
+    ssh -q ${DESTINATION_HOST} exit
+    ensure_success "remove server ${DESTINATION_HOST} is not reachable"
+    if [ ! -e ${BACKUP_DIRECTORY} ]; then
+        echo "The backup directory ${BACKUP_DIRECTORY} not exists"
+        exit 1
+    fi
+}
+
+
+santinize
 
 if [ "$1" == "full" ]; then
     time full_backup

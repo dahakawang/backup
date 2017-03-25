@@ -13,6 +13,7 @@
 #       Second Run Main
 #######################################################
 
+PATH=$PATH:/usr/local/bin
 
 if [ "$1" == "@second" ]; then
     source $2

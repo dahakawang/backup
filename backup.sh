@@ -104,7 +104,7 @@ EOF
 # create an incremental backup
 # if there's no last backup, do a full backup first
 function incremental_backup() {
-    echo "Full backup from ${BACKUP_DIRECTORY} to ${DESTINATION_HOST}:${DESTINATION_FOLDER}"
+    echo "Incremental backup from ${BACKUP_DIRECTORY} to ${DESTINATION_HOST}:${DESTINATION_FOLDER}"
 
     prune_backups ${INCREMENTAL_BASE_FOLDER} ${MAX_INCREMENTAL}
 
